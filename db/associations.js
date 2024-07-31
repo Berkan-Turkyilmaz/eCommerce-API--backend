@@ -17,20 +17,4 @@ User.hasMany(Order, {
   as: "orders",
 });
 
-// Order has many Products through OrderProduct
-Order.belongsToMany(Product, {
-  through: OrderProduct,
-  foreignKey: { allowNull: false, name: "orderId" },
-  otherKey: "productId",
-  as: "products",
-});
-
-// Product has many Orders through OrderProduct
-Product.belongsToMany(Order, {
-  through: OrderProduct,
-  foreignKey: { allowNull: false, name: "productId" },
-  otherKey: "orderId",
-  as: "orders",
-});
-
 export { User, Product, Order, Category };
