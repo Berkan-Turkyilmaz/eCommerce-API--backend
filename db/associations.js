@@ -1,20 +1,19 @@
 import sequelize from "./index.js";
-
 import User from "../models/user.js";
-import Product from "../models/product.js";
 import Order from "../models/order.js";
+import Product from "../models/product.js";
 import Category from "../models/category.js";
 
-// Order belongs to User
-Order.belongsTo(User, {
-  foreignKey: { allowNull: false, name: "userId" },
-  as: "user",
-});
 
-// User has many Orders
-User.hasMany(Order, {
-  foreignKey: { allowNull: false, name: "userId" },
-  as: "orders",
-});
+User.hasMany(Order, { foreignKey: { name: "userId", allowNull: false } });
+Order.belongsTo(User, { foreignKey: { name: "userId", allowNull: false } });
 
-export { User, Product, Order, Category };
+Category.hasMany(Product, { foreignKey: { name: "categoryId", allowNull: false } });
+Product.belongsTo(Category, { foreignKey: { name: "categoryId", allowNull: false } });
+
+Order.belongsToMany(Product, { through: 'OrderProducts', foreignKey: 'orderId' });
+Product.belongsToMany(Order, { through: 'OrderProducts', foreignKey: 'productId' })
+
+sequelize.sync({ alter: true });
+
+export { User, Order, Product, Category };

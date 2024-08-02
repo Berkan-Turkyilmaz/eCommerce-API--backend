@@ -1,95 +1,122 @@
-import {} from "../db/associations.js";
+import { Order, Product, User } from "../db/associations.js";
+import { OrderProduct } from "../models/orderProduct.js";
+import { orderSchema } from "../schemas/orderSchema.js";
 
-const getProductPrice = async (productId) => {
-  try {
-    const product = await Product.findByPk(productId);
-    if (!product) {
-      throw new Error(`Product with ID ${productId} not found`);
-    }
-    return product.price;
-  } catch (error) {
-    throw new Error(`Error fetching product price: ${error.message}`);
-  }
-};
 
-// GET /orders
+
 export const getOrders = async (req, res) => {
   try {
-    const orders = await Order.findAll();
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const orders = await Order.findAll({
+      attributes: { exclude: ['createdAt', 'updatedAt'] },
+      include: {
+        model: Product,
+        attributes: { exclude: ['createdAt', 'updatedAt'] }
+      }
+    });
+
+  if (orders) {
+    res.json(orders)}
+    else {
+res.status(500).json({error: error.message})
   }
-};
+ }
+catch (error) {
+res.status(400).json({error: error.message })
+}};
 
-// POST /orders
-export const createOrder = async (req, res) => {
-  try {
-    const { userId, products } = req.body;
-    if (!userId || !products || !Array.isArray(products))
-      return res
-        .status(400)
-        .json({ error: "userId and products array are required" });
 
-    let total = 0;
-    for (const item of products) {
-      const price = await getProductPrice(item.productId);
-      total += item.quantity * price;
-    }
-
-    const order = await Order.create({ userId, products, total });
-    res.json(order);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// GET /orders/:id
 export const getOrderById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const order = await Order.findByPk(id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    res.json(order);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  
+try {
+const order = await Order.findByPk(req.params.id, {include: Product});
+
+if (order) {
+  res.json(order);
+} else {
+  res.status(404).json({error: 'order not found'})
+};
+} catch (error) {
+  res.status(500).json({error: error.message})
+}};
+
+
+
+
+export const createOrder = async (req, res) => {
+
+const { error } = orderSchema.validate(req.body);
+  
+if(error) {
+  res.status(400).json({error: error.details[0].message})
+}
+try {
+  
+  const userExists = await User.findByPk(req.body.userId);
+
+if (!userExists) {
+  res.status(400).json({error: 'user doesnt exist,cant create order'})
+}
+
+const productIds = req.body.products.map(p => p.productId);
+const productsExist = await Product.findAll({
+  where: {id: productIds}
+});
+
+if (productsExist.length !== productIds.length) {
+  res.status(400).json({error: 'Some products do not exist'});
+}
+
+const order = await Order.create({
+  userId: req.body.userId,
+  total: req.body.total
+});
+
+const orderProducts = req.body.products.map(p => ({
+  orderId: order.id,
+  productId: p.productId,
+  quantity: p.quantity
+}));
+
+await OrderProduct.bulkCreate(orderProducts);
+res.status(201).json(order);
+} catch (error) {
+res.status(500).json({ error: error.message });
+}
 };
 
-// PUT /orders/:id
 export const updateOrder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { userId, products } = req.body;
-    if (!userId || !products || !Array.isArray(products))
-      return res
-        .status(400)
-        .json({ error: "userId and products array are required" });
 
-    const order = await Order.findByPk(id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
+  const { error } = orderSchema.validate(req.body);
+if(error) {
+  res.status(400).json({error: error.details[0].message})
+}
+try {
+  const order = await Order.findByPk(req.params.id);
+    if (!order) {
+res.status(404).json({error:'order not found'})
+    };
+  
+    await order.update({ total: req.body.total });
+    await order.setProducts(req.body.products.map(p => ({ ...p, OrderId: order.id })));  const [updated] = orderSchema.
 
-    let total = 0;
-    for (const item of products) {
-      const price = await getProductPrice(item.productId);
-      total += item.quantity * price;
-    }
-
-    await order.update({ userId, products, total });
-    res.json(order);
+    res.status(200).json(order);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// DELETE /orders/:id
+
 export const deleteOrder = async (req, res) => {
   try {
-    const { id } = req.params;
-    const order = await Order.findByPk(id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    await order.destroy();
-    res.json({ message: "Order deleted" });
+    const deleted = await db.Order.destroy({
+      where: { id: req.params.id }
+    });
+
+    if (deleted) {
+      res.status(204).json();
+    } else {
+      res.status(404).json({ error: 'Order not found' });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
