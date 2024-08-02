@@ -1,22 +1,15 @@
 import sequelize from "../db/index.js";
 import { DataTypes } from "sequelize";
 
-export const Users = sequelize.define("Users", {
-  // id: {
-  //   type: DataTypes.INTEGER,
-  //   allowNull: false,
-  // },
+export const User = sequelize.define("User", {
+ 
   name: {
     type: DataTypes.STRING,
     allowNull: false,
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true,
-    },
+    allowNull: false
   },
   password: {
     type: DataTypes.STRING,
@@ -24,6 +17,6 @@ export const Users = sequelize.define("Users", {
   },
 });
 
-Users.sync();
+User.sync();
 
-export default Users;
+export default User;
